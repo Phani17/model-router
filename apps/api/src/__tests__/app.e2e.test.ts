@@ -86,6 +86,16 @@ describe('API contract after NestJS migration', () => {
     expect(response.json().error.fieldErrors.models).toContain('Models must not contain duplicates');
   });
 
+  it('exposes routing as an explicit disabled feature by default', async () => {
+    const response = await app.getHttpAdapter().getInstance().inject({
+      method: 'POST',
+      url: '/api/v1/router/execute',
+      payload: { prompt: 'hello', models: ['model-a', 'model-b'] }
+    });
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ error: 'FEATURE_DISABLED', feature: 'MODEL_ROUTING' });
+  });
+
   it.each([
     [{ prompt: '', models: ['model-a', 'model-b'] }, 'prompt'],
     [{ prompt: 'hello', models: ['only-one'] }, 'models'],

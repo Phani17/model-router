@@ -209,7 +209,7 @@ export function ComparisonWorkspace() {
           <div className="result-grid">{selectedModels.map(model => <ResultCard key={model.id} model={model} card={cards[model.id] ?? { status: 'WAITING' }} />)}</div>
         </section>}
 
-        <section id="roadmap" className="roadmap-strip" aria-label="Product direction"><strong>From comparison to confidence</strong><span>Compare</span><i /> <span>Evaluate</span><i /> <span>Recommend</span><i /> <span>Route</span>{features?.recommendations && <b>Recommendations on</b>}</section>
+        <section id="roadmap" className="roadmap-strip" aria-label="Product direction"><strong>From comparison to confidence</strong><span>Compare</span><i /> <span>Evaluate</span><i /> <span>Recommend</span><i /> <span>Route</span>{features?.modelRouting ? <b>Routing on</b> : features?.recommendations && <b>Recommendations on</b>}</section>
       </main>
     </div>
   );

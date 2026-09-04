@@ -8,6 +8,9 @@ import {
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { comparisonRequestSchema } from '../comparison/dto/comparison-request.dto.js';
 import { inferenceRequestSchema } from '../inference/dto/inference-request.dto.js';
+import { FeatureFlagsService } from '../config/feature-flags.service.js';
+import { env } from '../config/env.js';
+import { routerRequestSchema } from '../router/dto/router-request.dto.js';
 import {
   TokenBucketRateLimiter,
   type RateLimitDecision
@@ -72,5 +75,24 @@ export class ComparisonRateLimitGuard extends RateLimitGuard {
   protected cost(body: unknown): number | undefined {
     const parsed = comparisonRequestSchema.safeParse(body);
     return parsed.success ? parsed.data.models.length : undefined;
+  }
+}
+
+@Injectable()
+export class RouterRateLimitGuard extends RateLimitGuard {
+  constructor(
+    @Inject(TokenBucketRateLimiter) limiter: TokenBucketRateLimiter,
+    @Inject(FeatureFlagsService) private readonly flags: FeatureFlagsService
+  ) {
+    super(limiter);
+  }
+
+  protected cost(body: unknown): number | undefined {
+    if (!this.flags.enabled('FEATURE_MODEL_ROUTING')) return undefined;
+    const parsed = routerRequestSchema.safeParse(body);
+    if (!parsed.success) return undefined;
+    return this.flags.enabled('FEATURE_MODEL_FALLBACKS')
+      ? Math.min(parsed.data.models.length, 1 + env.ROUTER_MAX_FALLBACKS)
+      : 1;
   }
 }

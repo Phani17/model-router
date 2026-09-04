@@ -19,7 +19,12 @@ const schema = z.object({
   OIDC_AUDIENCE: z.preprocess(value => value === '' ? undefined : value, z.string().min(1).optional()),
   OIDC_JWKS_URL: z.preprocess(value => value === '' ? undefined : value, z.string().url().optional()),
   OIDC_TENANT_CLAIM: z.string().min(1).default('tenant_id'),
-  OIDC_ROLES_CLAIM: z.string().min(1).default('roles')
+  OIDC_ROLES_CLAIM: z.string().min(1).default('roles'),
+  ROUTER_ALLOWED_MODELS: z.string().default(''),
+  ROUTER_DEFAULT_MODEL: z.string().default(''),
+  ROUTER_MAX_FALLBACKS: z.coerce.number().int().min(0).max(3).default(2),
+  ROUTER_TOTAL_DEADLINE_MS: z.coerce.number().int().min(1000).max(120000).default(45000),
+  ROUTER_MIN_EVIDENCE_SAMPLES: z.coerce.number().int().min(1).max(1000).default(5)
 }).superRefine((value, context) => {
   if (value.AUTH_ENABLED && (!value.OIDC_ISSUER || !value.OIDC_AUDIENCE || !value.OIDC_JWKS_URL)) {
     context.addIssue({ code: 'custom', message: 'OIDC_ISSUER, OIDC_AUDIENCE and OIDC_JWKS_URL are required when AUTH_ENABLED=true' });

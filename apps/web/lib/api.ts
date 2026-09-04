@@ -24,6 +24,8 @@ export interface PublicFeatures {
   evals: boolean;
   observability: boolean;
   recommendations: boolean;
+  modelRouting: boolean;
+  modelFallbacks: boolean;
 }
 
 async function toApiError(response: Response) {

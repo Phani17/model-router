@@ -1,6 +1,6 @@
 # Model Router
 
-Model Router is a full-stack proof of concept for comparing several DigitalOcean-hosted language models on one prompt, measuring their behavior, and building privacy-safe signals for future model recommendations. This README is the repository's single documentation source.
+Model Router is a full-stack proof of concept for comparing DigitalOcean-hosted language models, measuring their behavior, and using privacy-safe evidence to select a model with bounded fallback. This README is the repository's single documentation source.
 
 ## Included capabilities
 
@@ -14,6 +14,7 @@ Model Router is a full-stack proof of concept for comparing several DigitalOcean
 - Strict input and output guardrails that are always enabled.
 - PostgreSQL with pgvector for privacy-safe derived analysis.
 - Feature-flagged evaluation, governance, observability, semantic analysis, and recommendations.
+- Feature-flagged deterministic model routing and bounded cross-model fallback.
 - Provider-neutral OIDC/OAuth 2.0 authentication, roles, and tenant isolation.
 - Multi-stage production containers, Docker Compose, tests, and GitHub Actions CI.
 
@@ -33,6 +34,7 @@ NestJS services
   -> deterministic evaluations and safe metrics
   -> PostgreSQL + pgvector derived signals
   -> tenant-scoped recommendations
+  -> policy-based model selection and bounded fallback
 ```
 
 The browser never receives the DigitalOcean key or backend service address. The Next.js route forwards request and streaming response bodies. Frontend and API share a pnpm monorepo but remain independently deployable: `apps/api` contains NestJS, `apps/web` contains Next.js, and `packages/shared` contains shared TypeScript contracts.
@@ -48,6 +50,7 @@ The browser never receives the DigitalOcean key or backend service address. The 
 | `POST` | `/api/v1/inference/test` | Single-model inference | User |
 | `POST` | `/api/v1/comparisons` | Synchronous comparison | User |
 | `POST` | `/api/v1/comparisons/stream` | Comparison progress over SSE | User |
+| `POST` | `/api/v1/router/execute` | Select one model and execute a bounded fallback chain | User |
 | `GET` | `/api/v1/metrics` | Safe aggregate metrics | Evaluator or admin |
 | `GET` | `/api/v1/recommendations?intent=CODING` | Tenant rankings | User |
 
@@ -55,11 +58,15 @@ Comparison requests accept a prompt, two to four unique model IDs, optional temp
 
 SSE events are `comparison_started`, `model_started`, `model_retrying`, `model_completed`, `model_failed`, and `comparison_completed`. The synchronous endpoint remains the fallback.
 
+Routing requests accept a prompt and one to four unique candidate model IDs. Routing never changes comparison results or presents one model's answer as another model's. It selects the highest-confidence tenant recommendation when enough evidence exists, otherwise an administrator-configured default within the requested candidates, otherwise request order. The response discloses the initially selected model, actual serving model, policy version, safe attempt history, and whether fallback occurred. Attempt history never duplicates answer content.
+
+`ROUTER_ALLOWED_MODELS` optionally applies an administrator allowlist. `ROUTER_DEFAULT_MODEL` sets the cold-start preference, `ROUTER_MIN_EVIDENCE_SAMPLES` controls confidence, `ROUTER_MAX_FALLBACKS` bounds fan-out, and `ROUTER_TOTAL_DEADLINE_MS` bounds the entire chain. The router never invokes a model omitted by the caller.
+
 ## Resilience and rate limiting
 
 Each model executes independently and concurrently. Defaults are three attempts, an eight-second attempt timeout, a twenty-second total deadline, exponential backoff with full jitter, and a two-second maximum backoff. HTTP 408, 429, 5xx, transient network errors, and timeouts are retryable. Permanent client/authentication failures are not. Provider `Retry-After` takes precedence within configured limits.
 
-The local token bucket charges one unit for single inference and one unit per comparison model. Defaults are 20 units capacity and 20 units per minute refill. Invalid requests do not consume quota. Accepted responses expose rate-limit headers; denied requests return HTTP 429 with `Retry-After`.
+The local token bucket charges one unit for single inference and one unit per comparison model. Routing reserves the maximum number of model invocations its enabled fallback chain can make. Defaults are 20 units capacity and 20 units per minute refill. Invalid or disabled requests do not consume quota. Accepted responses expose rate-limit headers; denied requests return HTTP 429 with `Retry-After`.
 
 The PoC limiter is process-local and IP-keyed. Multi-replica production should use distributed, verified-tenant quota and concurrency enforcement.
 
@@ -105,9 +112,31 @@ Strict guardrails and privacy enforcement cannot be disabled.
 | Deterministic evaluation | `FEATURE_EVALS` | Off | Numeric scores only |
 | Operational metrics | `FEATURE_OBSERVABILITY` | Off | Numeric counters only |
 | Recommendations | `FEATURE_RECOMMENDATIONS` | Off | Aggregate signals only |
+| Model routing | `FEATURE_MODEL_ROUTING` | Off | None |
+| Cross-model fallback | `FEATURE_MODEL_FALLBACKS` | Off | None |
 | Local development identity | `FEATURE_DEV_IDENTITY` | Off | No production use |
 
-Semantic analysis requires the database. Recommendations require evaluations. Development identity is rejected in production. Token/cost governance stays off by default so PoC quality is not silently reduced. When enabled, it caps output and compacts very long inference context while preserving opening and latest constraints; evaluation inputs are not compacted.
+Semantic analysis requires the database. Recommendations require evaluations. Cross-model fallback requires model routing. Routing can use request/default order without a database; evidence ranking requires recommendations and sufficient tenant samples. Development identity is rejected in production. Token/cost governance stays off by default so PoC quality is not silently reduced. When enabled, it caps output and compacts very long inference context while preserving opening and latest constraints; evaluation inputs are not compacted.
+
+Example routing configuration:
+
+```dotenv
+FEATURE_MODEL_ROUTING=true
+FEATURE_MODEL_FALLBACKS=true
+ROUTER_ALLOWED_MODELS=model-a,model-b,model-c
+ROUTER_DEFAULT_MODEL=model-a
+ROUTER_MAX_FALLBACKS=2
+ROUTER_TOTAL_DEADLINE_MS=45000
+ROUTER_MIN_EVIDENCE_SAMPLES=5
+```
+
+Example request:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/router/execute \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Explain database sharding","models":["model-a","model-b","model-c"]}'
+```
 
 ## Authentication and tenant isolation
 
@@ -172,7 +201,7 @@ NestJS intentionally retains Fastify as its HTTP engine. Nest provides modules, 
 Final verification passed:
 
 - monorepo production build;
-- 65 backend tests across provider, service, guardrail, privacy, cache, evaluation, governance, recommendation, observability, and HTTP boundaries;
+- 71 backend tests across provider, service, routing/fallback, guardrail, privacy, cache, evaluation, governance, recommendation, observability, and HTTP boundaries;
 - 10 frontend tests for catalog loading, selection, SSE parsing, fallback, partial failure, errors, and feature state;
 - Compose configuration validation;
 - API and web production image builds;
@@ -183,5 +212,5 @@ Final verification passed:
 - Provider token-by-token streaming and disconnect cancellation.
 - Distributed tenant quota, spend budgets, and authoritative model pricing.
 - Repeatable benchmarks, human feedback, leaderboards, and regression alerts.
-- Production routing, fallbacks, and controlled model rollouts.
+- Multi-provider routing, live provider health scoring, and controlled model rollouts.
 - An organization-specific OIDC proxy/BFF deployment.

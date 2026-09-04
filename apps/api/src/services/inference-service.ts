@@ -27,6 +27,10 @@ export interface InferenceProgressReporter {
   }): void;
 }
 
+export interface InferenceConstraints {
+  deadlineAt?: number;
+}
+
 const DEFAULT_POLICY: ResiliencePolicy = {
   maxAttempts: 3,
   attemptTimeoutMs: 8_000,
@@ -52,13 +56,17 @@ export class InferenceService {
     prompt: string,
     temperature = 0.2,
     maxTokens = 1000,
-    progress?: InferenceProgressReporter
+    progress?: InferenceProgressReporter,
+    constraints?: InferenceConstraints
   ): Promise<ModelResult> {
     const started = performance.now();
     const governed = this.governance?.apply(prompt, maxTokens) ?? {
       prompt, maxTokens, estimatedInputTokens: Math.ceil(prompt.length / 4), compacted: false
     };
-    const deadlineAt = Date.now() + this.policy.modelDeadlineMs;
+    const deadlineAt = Math.min(
+      Date.now() + this.policy.modelDeadlineMs,
+      constraints?.deadlineAt ?? Number.POSITIVE_INFINITY
+    );
     let attempts = 0;
     let lastError: unknown;
 

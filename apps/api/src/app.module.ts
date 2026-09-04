@@ -14,8 +14,9 @@ import { GovernanceModule } from './governance/governance.module.js';
 import { ObservabilityModule } from './observability/observability.module.js';
 import { RecommendationsModule } from './recommendations/recommendations.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { RouterModule } from './router/router.module.js';
 
 @Module({
-  imports: [ConfigModule, AuthModule, DatabaseModule, CacheModule, PrivacyModule, EvalsModule, GovernanceModule, ObservabilityModule, RecommendationsModule, GuardrailsModule, RateLimitModule, HealthModule, InferenceModule, ModelsModule, ComparisonModule]
+  imports: [ConfigModule, AuthModule, DatabaseModule, CacheModule, PrivacyModule, EvalsModule, GovernanceModule, ObservabilityModule, RecommendationsModule, GuardrailsModule, RateLimitModule, HealthModule, InferenceModule, ModelsModule, ComparisonModule, RouterModule]
 })
 export class AppModule {}

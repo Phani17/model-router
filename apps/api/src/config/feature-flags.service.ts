@@ -16,7 +16,9 @@ export class FeatureFlagsService {
       semanticCache: this.values.FEATURE_SEMANTIC_CACHE,
       evals: this.values.FEATURE_EVALS,
       observability: this.values.FEATURE_OBSERVABILITY,
-      recommendations: this.values.FEATURE_RECOMMENDATIONS
+      recommendations: this.values.FEATURE_RECOMMENDATIONS,
+      modelRouting: this.values.FEATURE_MODEL_ROUTING,
+      modelFallbacks: this.values.FEATURE_MODEL_FALLBACKS
     };
   }
 }

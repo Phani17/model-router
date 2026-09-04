@@ -20,7 +20,7 @@ const catalog = [
 describe('ComparisonWorkspace', () => {
   beforeEach(() => {
     vi.mocked(getModels).mockResolvedValue(catalog);
-    vi.mocked(getFeatures).mockResolvedValue({ tokenCostGovernance: false, exactCache: false, semanticCache: false, evals: false, observability: false, recommendations: false });
+    vi.mocked(getFeatures).mockResolvedValue({ tokenCostGovernance: false, exactCache: false, semanticCache: false, evals: false, observability: false, recommendations: false, modelRouting: false, modelFallbacks: false });
     vi.mocked(compareWithProgress).mockResolvedValue();
   });
 

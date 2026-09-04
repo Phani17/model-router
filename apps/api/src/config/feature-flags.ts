@@ -9,6 +9,8 @@ const featureFlagSchema = z.object({
   FEATURE_EVALS: booleanFlag,
   FEATURE_OBSERVABILITY: booleanFlag,
   FEATURE_RECOMMENDATIONS: booleanFlag,
+  FEATURE_MODEL_ROUTING: booleanFlag,
+  FEATURE_MODEL_FALLBACKS: booleanFlag,
   FEATURE_DEV_IDENTITY: booleanFlag
 });
 
@@ -21,6 +23,9 @@ export function parseFeatureFlags(input: NodeJS.ProcessEnv): FeatureFlags {
   }
   if (flags.FEATURE_RECOMMENDATIONS && input.FEATURE_EVALS !== 'true') {
     throw new Error('FEATURE_RECOMMENDATIONS requires FEATURE_EVALS=true');
+  }
+  if (flags.FEATURE_MODEL_FALLBACKS && input.FEATURE_MODEL_ROUTING !== 'true') {
+    throw new Error('FEATURE_MODEL_FALLBACKS requires FEATURE_MODEL_ROUTING=true');
   }
   if (flags.FEATURE_DEV_IDENTITY && input.NODE_ENV === 'production') {
     throw new Error('FEATURE_DEV_IDENTITY is prohibited in production');
