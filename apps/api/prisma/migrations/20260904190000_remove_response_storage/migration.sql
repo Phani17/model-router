@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS "safe_response_cache";
+ALTER TABLE "evaluation_metrics" ADD COLUMN IF NOT EXISTS "intent" VARCHAR(64) NOT NULL DEFAULT 'GENERAL';

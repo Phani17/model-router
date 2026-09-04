@@ -1,0 +1,96 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: model_router
+      POSTGRES_USER: model_router
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-model_router_local_only}"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - model-router-postgres:/var/lib/postgresql/data
+      - ./apps/api/prisma/migrations/20260904120000_privacy_safe_pgvector/migration.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./apps/api/prisma/migrations/20260904190000_remove_response_storage/migration.sql:/docker-entrypoint-initdb.d/002-privacy-upgrade.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U model_router -d model_router"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  api:
+    build:
+      context: .
+      target: runtime
+    image: model-router-api:local
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      DIGITALOCEAN_MODEL_ACCESS_KEY: "${DIGITALOCEAN_MODEL_ACCESS_KEY:-}"
+      DIGITALOCEAN_INFERENCE_BASE_URL: "${DIGITALOCEAN_INFERENCE_BASE_URL:-https://inference.do-ai.run}"
+      RATE_LIMIT_CAPACITY: "${RATE_LIMIT_CAPACITY:-20}"
+      RATE_LIMIT_REFILL_PER_SECOND: "${RATE_LIMIT_REFILL_PER_SECOND:-0.3333333333}"
+      DATABASE_ENABLED: "true"
+      DATABASE_URL: "postgresql://model_router:${POSTGRES_PASSWORD:-model_router_local_only}@postgres:5432/model_router?schema=public"
+      FEATURE_TOKEN_COST_GOVERNANCE: "${FEATURE_TOKEN_COST_GOVERNANCE:-false}"
+      FEATURE_EXACT_CACHE: "${FEATURE_EXACT_CACHE:-false}"
+      FEATURE_SEMANTIC_CACHE: "${FEATURE_SEMANTIC_CACHE:-false}"
+      FEATURE_EVALS: "${FEATURE_EVALS:-false}"
+      FEATURE_OBSERVABILITY: "${FEATURE_OBSERVABILITY:-false}"
+      FEATURE_RECOMMENDATIONS: "${FEATURE_RECOMMENDATIONS:-false}"
+      FEATURE_DEV_IDENTITY: "${FEATURE_DEV_IDENTITY:-false}"
+      CACHE_FINGERPRINT_KEY: "${CACHE_FINGERPRINT_KEY:-local-development-key-change-me-32chars}"
+      AUTH_ENABLED: "${AUTH_ENABLED:-false}"
+      OIDC_ISSUER: "${OIDC_ISSUER:-}"
+      OIDC_AUDIENCE: "${OIDC_AUDIENCE:-}"
+      OIDC_JWKS_URL: "${OIDC_JWKS_URL:-}"
+      OIDC_TENANT_CLAIM: "${OIDC_TENANT_CLAIM:-tenant_id}"
+      OIDC_ROLES_CLAIM: "${OIDC_ROLES_CLAIM:-roles}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: runtime
+    image: model-router-web:local
+    init: true
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      API_BASE_URL: http://api:8080
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  model-router-postgres:

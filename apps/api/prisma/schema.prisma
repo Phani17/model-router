@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// Privacy boundary: this schema must never gain raw prompt or raw model-output columns.
+model WorkloadAnalysis {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @db.VarChar(128)
+  actorId             String   @db.VarChar(128)
+  fingerprint         String   @db.VarChar(128)
+  intent              String   @db.VarChar(64)
+  sanitizedDescriptor String   @db.VarChar(512)
+  sensitivityLabels   String[]
+  freshnessClass      String   @db.VarChar(32)
+  embedding           Unsupported("vector(1536)")?
+  expiresAt           DateTime?
+  createdAt           DateTime @default(now())
+
+  @@unique([tenantId, fingerprint])
+  @@index([tenantId, intent])
+  @@index([expiresAt])
+  @@map("workload_analyses")
+}
+
+model EvaluationMetric {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.VarChar(128)
+  comparisonId   String   @db.VarChar(128)
+  modelId        String   @db.VarChar(128)
+  intent         String   @db.VarChar(64)
+  evaluator      String   @db.VarChar(64)
+  evaluatorVersion String @db.VarChar(32)
+  scores         Json
+  passed         Boolean
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, modelId, createdAt])
+  @@map("evaluation_metrics")
+}
+
+model RecommendationSignal {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.VarChar(128)
+  intent       String   @db.VarChar(64)
+  modelId      String   @db.VarChar(128)
+  qualityScore Float
+  latencyMsP50 Int?
+  costMicrosP50 BigInt?
+  sampleCount  Int
+  computedAt   DateTime @default(now())
+
+  @@unique([tenantId, intent, modelId])
+  @@map("recommendation_signals")
+}
