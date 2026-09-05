@@ -1,6 +1,6 @@
 # Model Router
 
-Model Router is a full-stack proof of concept for comparing DigitalOcean-hosted language models, measuring their behavior, and using privacy-safe evidence to select a model with bounded fallback. This README is the repository's single documentation source.
+Model Router is a full-stack proof of concept for comparing DigitalOcean-hosted language models, measuring their behavior, and using privacy-safe evidence to select a model with bounded fallback. This README documents the system as built; see [ROADMAP.md](ROADMAP.md) for the design rationale/tradeoffs behind these choices and the longer-term roadmap.
 
 ## Included capabilities
 
@@ -214,3 +214,5 @@ Final verification passed:
 - Repeatable benchmarks, human feedback, leaderboards, and regression alerts.
 - Multi-provider routing, live provider health scoring, and controlled model rollouts.
 - An organization-specific OIDC proxy/BFF deployment.
+
+See [ROADMAP.md](ROADMAP.md) for the phased version of this list, with rationale for each item and the design tradeoffs that motivate it.
